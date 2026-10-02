@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Never expose Laravel internals from Hostinger's fixed public_html root.
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(?:app|bootstrap|config|database|resources|routes|storage|tests|vendor)(?:/|$) - [F,L,NC]
+    RewriteRule ^(?:artisan|composer\.(?:json|lock)|phpunit\.xml|AGENTS\.md|PROJECT_STATUS\.md|DEPLOY_HOSTINGER\.md)$ - [F,L,NC]
+
+    # Hostinger shared hosting commonly points the domain at public_html.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
