@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.import/source.tar.xz'
+      - '.github/workflows/import-source.yml'
 
 permissions:
   contents: write
