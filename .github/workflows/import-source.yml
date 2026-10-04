@@ -1,0 +1,45 @@
+name: Import prepared application source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.import/source.tar.xz'
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate and extract prepared source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -tJf .import/source.tar.xz >/tmp/archive-list.txt
+          test $(wc -l </tmp/archive-list.txt) -ge 300
+          tar -xJf .import/source.tar.xz -C .
+          test -f composer.json
+          test -f artisan
+          test -d app
+          test -d database
+          test -d routes
+          test -d resources
+          test -d tests
+          rm -rf .import
+          rm -f .github/workflows/import-source.yml
+
+      - name: Commit complete source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Import complete Laravel law firm application prepared for Hostinger"
+          git push origin HEAD:main
