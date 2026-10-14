@@ -36,6 +36,7 @@ jobs:
           test -f .env.example
           test -f public/index.php
           test -f .github/workflows/ci.yml
+          rm -f .github/workflows/ci.yml
 
       - name: Commit imported source
         shell: bash
