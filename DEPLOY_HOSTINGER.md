@@ -1,79 +1,82 @@
-# Hostinger deployment
-
-This repository is prepared for Hostinger Web/Cloud hosting where the domain root is usually `public_html`.
+# Hostinger deployment — Lawyer System
 
 ## Requirements
-
-- PHP 8.2 or newer (PHP 8.3 recommended)
-- Extensions: mbstring, XML/DOM, PDO MySQL, OpenSSL, Fileinfo, Ctype, JSON, Tokenizer
+- PHP 8.2+ (8.3 recommended)
+- Composer 2
 - MySQL 8 / compatible MariaDB
-- SSH access is strongly recommended
+- PHP extensions: DOM/XML, mbstring, PDO MySQL, fileinfo, intl, openssl, tokenizer, ctype, curl
+- Cron access for Laravel scheduler
 
-## First deployment
+## 1. Deploy source
+Clone or upload the repository and point the domain document root to the Laravel `public/` directory. If Hostinger does not allow changing document root, keep the application outside `public_html` and place only the contents of `public/` inside `public_html`, updating the two bootstrap paths in `index.php` accordingly.
 
-1. In hPanel, set the website PHP version to 8.3 (or at least 8.2).
-2. Deploy/clone this repository into the domain `public_html` directory.
-3. Create the production `.env` from `.env.example` and fill in the real domain/database/mail values. Never commit `.env`.
-4. From SSH, in the project root, run:
+Do **not** upload `.env`, database dumps, `vendor/`, local logs, cached Blade files, or session files from a workstation.
 
+## 2. Install dependencies
 ```bash
-composer2 install --no-dev --prefer-dist --optimize-autoloader
-php artisan key:generate --force
+composer install --no-dev --prefer-dist --optimize-autoloader
+```
+The Composer scripts run Filament package discovery/upgrade. If published Filament assets are absent, run:
+```bash
+php artisan filament:assets
+```
+
+## 3. Environment
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+Set at minimum:
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_URL=https://your-domain`
+- MySQL `DB_*` values
+- mail settings
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and optionally `ADMIN_NAME`
+
+Use a strong unique `ADMIN_PASSWORD`. Never use the demo password in production.
+
+## 4. Database
+For a new installation:
+```bash
 php artisan migrate --force
+php artisan db:seed --force
+```
+The production seeder creates the admin account only when `ADMIN_EMAIL` and `ADMIN_PASSWORD` are defined. Demo data runs only in the local environment.
+
+The historical `lawfirm.sql` dump is intentionally **not** stored in the public GitHub repository because it contains private application data. Import it only through a private transfer if a real data migration is required, after reviewing compatibility with the migrations.
+
+## 5. Storage and caches
+```bash
 php artisan storage:link
-php artisan optimize
+php artisan optimize:clear
+php artisan config:cache
+php artisan view:cache
 ```
-
-If the database was restored from the supplied SQL dump instead of created from migrations, do not re-import the dump on every deployment. Run `php artisan migrate --force` only to apply newer migrations.
-
-## Recommended production .env values
-
-```dotenv
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://YOUR-DOMAIN.TLD
-APP_TIMEZONE=Africa/Cairo
-APP_LOCALE=ar
-APP_FALLBACK_LOCALE=en
-
-SESSION_DRIVER=database
-CACHE_STORE=database
-QUEUE_CONNECTION=database
-FILESYSTEM_DISK=local
-FIRM_DOCUMENTS_DISK=private
-```
-
-Set the actual `DB_*` and `MAIL_*` values in the server `.env` only.
-
-## Scheduler (required)
-
-The application schedules hearing reminders, company-deadline reminders and overdue invoice updates. Add one Hostinger Cron Job to run every minute:
-
+Use route caching only after confirming no environment-specific route issue:
 ```bash
-/usr/bin/php /home/USERNAME/domains/YOUR-DOMAIN.TLD/public_html/artisan schedule:run
+php artisan route:cache
 ```
+Ensure `storage/` and `bootstrap/cache/` are writable by PHP.
 
-## Queue worker
-
-The project uses `QUEUE_CONNECTION=database`. If persistent workers are not available on the hosting plan, a cron job can process queued jobs in bounded runs:
-
+## 6. Scheduler
+Add one cron job running every minute:
 ```bash
-/usr/bin/php /home/USERNAME/domains/YOUR-DOMAIN.TLD/public_html/artisan queue:work --stop-when-empty --tries=3
+* * * * * cd /home/USER/path/to/app && php artisan schedule:run >> /dev/null 2>&1
 ```
+The application schedules hearing reminders, deadline reminders, and overdue-invoice updates.
 
-## Subsequent deployments
+## 7. Verification
+Check:
+- `/up` returns healthy status
+- `/admin` redirects guests to `/admin/login`
+- admin login works
+- `/portal` is restricted to client users
+- invoice and payment print pages work when authenticated
+- uploaded/private documents are not publicly exposed
+- `APP_DEBUG=false`
 
+Run when dev dependencies are installed in staging/CI:
 ```bash
-git pull
-composer2 install --no-dev --prefer-dist --optimize-autoloader
-php artisan migrate --force
-php artisan optimize
+php artisan test
 ```
-
-## Health check
-
-Verify these URLs after deployment:
-
-- `/up`
-- `/admin`
-- `/portal`

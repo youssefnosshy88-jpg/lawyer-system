@@ -1,20 +1,16 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\PrintController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect('/admin');
+Route::get('/', fn () => redirect('/admin'));
+
+Route::get('/locale/{locale}', LocaleController::class)
+    ->where('locale', 'ar|en')
+    ->name('locale.switch');
+
+Route::middleware(['auth'])->group(function (): void {
+    Route::get('/print/invoices/{invoice}', [PrintController::class, 'invoice'])->name('invoices.print');
+    Route::get('/print/payments/{payment}', [PrintController::class, 'receipt'])->name('payments.receipt');
 });
-
-Route::get('/dashboard', function () {
-    return redirect('/admin');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
-require __DIR__.'/auth.php';
